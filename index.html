@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Lava Jato Tito</title>
+
+<style>
+body{
+  font-family:Arial;
+  background:#ecf0f1;
+  padding:10px;
+}
+.dark{
+  background:#121212;
+  color:white;
+}
+header{
+  background:#27ae60;
+  color:white;
+  padding:12px;
+  border-radius:10px;
+  text-align:center;
+  font-size:22px;
+  font-weight:bold;
+  margin-bottom:10px;
+}
+.card{
+  background:white;
+  padding:12px;
+  border-radius:10px;
+  margin-bottom:12px;
+  box-shadow:0 2px 5px rgba(0,0,0,0.1);
+}
+.dark .card{
+  background:#1e1e1e;
+}
+input,select,button{
+  width:100%;
+  padding:10px;
+  margin-top:6px;
+  border-radius:6px;
+  border:1px solid #ccc;
+  font-size:15px;
+}
+button{
+  background:#27ae60;
+  color:white;
+  border:none;
+}
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+th,td{
+  border:1px solid #ccc;
+  padding:6px;
+  text-align:center;
+  font-size:13px;
+}
+th{
+  background:#27ae60;
+  color:white;
+}
+.pago{background:#d4edda;}
+.nao-pago{background:#f8d7da;}
+.top-bar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
+}
+</style>
+</head>
+
+<body>
+
+<header>🚗 LAVA JATO TITO</header>
+
+<div class="top-bar">
+  <button onclick="trocarTema()">🌙 Tema</button>
+  <div id="data"></div>
+</div>
+
+<div class="card">
+<form id="formLavagem">
+<input id="nome" placeholder="Nome do cliente" required>
+<input id="telefone" placeholder="Telefone" required>
+<input id="modelo" placeholder="Modelo do carro" required>
+<input id="placa" placeholder="Placa" required>
+
+<select id="tipo">
+<option value="40">Lavagem (P) - R$40</option>
+<option value="45">Lavagem (M) - R$45</option>
+<option value="50">Lavagem (G) - R$50</option>
+<option value="55">Caminhonete - R$55</option>
+</select>
+
+<label>
+<input type="checkbox" id="cera"> Adicionar Cera (+R$5)
+</label>
+
+<input id="valor" type="number" placeholder="Valor" readonly>
+
+<button type="submit">➕ Adicionar Lavagem</button>
+</form>
+</div>
+
+<div class="card">
+<div id="total"></div>
+</div>
+
+<div class="card">
+<table>
+<thead>
+<tr>
+<th>Cliente</th>
+<th>Telefone</th>
+<th>Modelo</th>
+<th>Placa</th>
+<th>Valor</th>
+<th>Tipo</th>
+<th>Pagamento</th>
+<th>Status</th>
+<th>Ação</th>
+</tr>
+</thead>
+<tbody id="lista"></tbody>
+</table>
+</div>
+
+<script>
+let dados = JSON.parse(localStorage.getItem("lavagens")) || [];
+let tema = localStorage.getItem("tema") || "claro";
+
+if(tema=="escuro"){
+ document.body.classList.add("dark");
+}
+
+const form = document.getElementById("formLavagem");
+const lista = document.getElementById("lista");
+const total = document.getElementById("total");
+const dataDiv = document.getElementById("data");
+
+function trocarTema(){
+ tema = tema=="claro"?"escuro":"claro";
+ localStorage.setItem("tema",tema);
+ location.reload();
+}
+
+function atualizarData(){
+ dataDiv.innerHTML="📅 "+new Date().toLocaleString();
+}
+setInterval(atualizarData,1000);
+
+function calcularValor(){
+ let tipoValor = Number(document.getElementById("tipo").value);
+ let ceraValor = document.getElementById("cera").checked ? 5 : 0;
+ document.getElementById("valor").value = tipoValor + ceraValor;
+}
+document.getElementById("tipo").onchange = calcularValor;
+document.getElementById("cera").onchange = calcularValor;
+calcularValor();
+
+function salvar(){
+ localStorage.setItem("lavagens",JSON.stringify(dados));
+}
+
+function render(){
+ lista.innerHTML="";
+ let hoje=new Date().toLocaleDateString();
+ let soma=0;
+
+ dados.forEach((item,i)=>{
+  if(item.data==hoje && item.pago){
+    soma+=Number(item.valor);
+  }
+
+  let tr=document.createElement("tr");
+  tr.className=item.pago?"pago":"nao-pago";
+
+  tr.innerHTML=`
+  <td>${item.nome}</td>
+  <td>${item.telefone}</td>
+  <td>${item.modelo}</td>
+  <td>${item.placa}</td>
+  <td>R$ ${item.valor}</td>
+  <td>${item.tipo}</td>
+  <td>
+    <select onchange="alterarPagamento(${i}, this.value)">
+      <option ${item.pagamento=="Pix"?"selected":""}>Pix</option>
+      <option ${item.pagamento=="Dinheiro"?"selected":""}>Dinheiro</option>
+      <option ${item.pagamento=="Cartão"?"selected":""}>Cartão</option>
+      <option ${item.pagamento=="Resolver depois"?"selected":""}>Resolver depois</option>
+    </select>
+  </td>
+  <td><button onclick="togglePago(${i})">${item.pago?"Pago":"Não pago"}</button></td>
+  <td><button onclick="excluir(${i})" style="background:red;">X</button></td>
+  `;
+  lista.appendChild(tr);
+ });
+
+ total.innerHTML="💰 Total hoje: R$ "+soma.toFixed(2);
+}
+
+form.onsubmit=function(e){
+ e.preventDefault();
+
+ dados.push({
+  nome:document.getElementById("nome").value,
+  telefone:document.getElementById("telefone").value,
+  modelo:document.getElementById("modelo").value,
+  placa:document.getElementById("placa").value,
+  valor:document.getElementById("valor").value,
+  tipo:document.getElementById("tipo").options[document.getElementById("tipo").selectedIndex].text,
+  pagamento:"Resolver depois",
+  pago:false,
+  data:new Date().toLocaleDateString()
+ });
+
+ salvar();
+ render();
+ form.reset();
+ calcularValor();
+};
+
+function togglePago(i){
+ dados[i].pago = !dados[i].pago;
+ salvar();
+ render();
+}
+
+function alterarPagamento(i, valor){
+ dados[i].pagamento = valor;
+ salvar();
+}
+
+function excluir(i){
+ if(confirm("Excluir este registro?")){
+  dados.splice(i,1);
+  salvar();
+  render();
+ }
+}
+
+render();
+</script>
+
+</body>
+</html>
